@@ -1,0 +1,56 @@
+{
+  "name": "nostr-biometric-login-utils",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "WebAuthn-based biometric authentication utilities for Nostr applications, providing secure key storage and retrieval using platform biometrics",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && tsc -p tsconfig.cjs.json",
+    "test": "vitest",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.ts",
+    "prepublishOnly": "npm run build",
+    "start:demo": "node proof_of_concept/simple-server.js"
+  },
+  "keywords": [
+    "nostr",
+    "authentication",
+    "webauthn",
+    "biometric",
+    "hardware-security",
+    "passkey",
+    "maiqr"
+  ],
+  "author": "vveerrgg",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HumanjavaEnterprises/nostr-biometric-login-utils.git"
+  },
+  "bugs": {
+    "url": "https://github.com/HumanjavaEnterprises/nostr-biometric-login-utils/issues"
+  },
+  "homepage": "https://github.com/HumanjavaEnterprises/nostr-biometric-login-utils#readme",
+  "dependencies": {
+    "@simplewebauthn/browser": "^8.3.4",
+    "@simplewebauthn/server": "^8.3.5",
+    "nostr-crypto-utils": "file:../nostr-crypto-utils"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@typescript-eslint/eslint-plugin": "^6.16.0",
+    "@typescript-eslint/parser": "^6.16.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0"
+  }
+}

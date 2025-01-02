@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nostr Biometric Login Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #E8F5E9;
+            color: #2E7D32;
+        }
+        .error {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+    </style>
+</head>
+<body>
+    <h1>Nostr Biometric Login Example</h1>
+    
+    <div class="container">
+        <h2>WebAuthn Support</h2>
+        <div id="support-status"></div>
+    </div>
+
+    <div class="container">
+        <h2>Registration</h2>
+        <button id="register">Register with Biometrics</button>
+        <div id="register-status" class="status"></div>
+    </div>
+
+    <div class="container">
+        <h2>Authentication</h2>
+        <button id="authenticate">Authenticate with Biometrics</button>
+        <div id="auth-status" class="status"></div>
+    </div>
+
+    <script type="module">
+        import { WebAuthnClient } from '/public/webauthn-client.js';
+
+        let client;
+
+        // Initialize WebAuthn client with server info
+        async function initClient() {
+            const response = await fetch('/server-info');
+            const { rpId } = await response.json();
+            
+            client = new WebAuthnClient({
+                rpId,
+                rpName: 'Nostr Biometric Login Example'
+            });
+
+            // Check WebAuthn support after client is initialized
+            await checkSupport();
+        }
+
+        // Check WebAuthn support
+        const supportStatus = document.getElementById('support-status');
+        const registerBtn = document.getElementById('register');
+        const authBtn = document.getElementById('authenticate');
+        const registerStatus = document.getElementById('register-status');
+        const authStatus = document.getElementById('auth-status');
+
+        async function checkSupport() {
+            const supported = WebAuthnClient.isSupported();
+            const available = await WebAuthnClient.isAvailable();
+
+            if (!supported) {
+                supportStatus.textContent = '❌ Your browser does not support WebAuthn';
+                supportStatus.className = 'status error';
+                registerBtn.disabled = true;
+                authBtn.disabled = true;
+                return;
+            }
+
+            if (!available) {
+                supportStatus.textContent = '❌ Your device does not support biometric authentication';
+                supportStatus.className = 'status error';
+                registerBtn.disabled = true;
+                authBtn.disabled = true;
+                return;
+            }
+
+            supportStatus.textContent = '✅ Your device supports biometric authentication';
+            supportStatus.className = 'status success';
+        }
+
+        // Registration
+        registerBtn.addEventListener('click', async () => {
+            try {
+                // For demo, we'll use a fixed user ID
+                const userId = 'demo-user';
+                
+                // Get challenge from server
+                const challengeResp = await fetch('/auth/webauthn/register/challenge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId })
+                });
+                const { challenge } = await challengeResp.json();
+
+                // Register with WebAuthn
+                const credential = await client.register(
+                    challenge,
+                    userId,
+                    'Demo User'
+                );
+
+                // Verify with server
+                const verifyResp = await fetch('/auth/webauthn/register/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, credential })
+                });
+                const { success, error } = await verifyResp.json();
+
+                if (success) {
+                    registerStatus.textContent = '✅ Registration successful!';
+                    registerStatus.className = 'status success';
+                } else {
+                    throw new Error(error || 'Registration failed');
+                }
+            } catch (error) {
+                registerStatus.textContent = `❌ ${error.message}`;
+                registerStatus.className = 'status error';
+            }
+        });
+
+        // Authentication
+        authBtn.addEventListener('click', async () => {
+            try {
+                // For demo, we'll use a fixed user ID
+                const userId = 'demo-user';
+                
+                // Get challenge from server
+                const challengeResp = await fetch('/auth/webauthn/authenticate/challenge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId })
+                });
+                const { challenge } = await challengeResp.json();
+
+                // Authenticate with WebAuthn
+                const credential = await client.authenticate(challenge);
+
+                // Verify with server
+                const verifyResp = await fetch('/auth/webauthn/authenticate/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, credential })
+                });
+                const { success, error } = await verifyResp.json();
+
+                if (success) {
+                    authStatus.textContent = '✅ Authentication successful!';
+                    authStatus.className = 'status success';
+                } else {
+                    throw new Error(error || 'Authentication failed');
+                }
+            } catch (error) {
+                authStatus.textContent = `❌ ${error.message}`;
+                authStatus.className = 'status error';
+            }
+        });
+
+        // Initialize on load
+        initClient();
+    </script>
+</body>
+</html>
