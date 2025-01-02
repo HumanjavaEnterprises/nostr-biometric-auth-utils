@@ -1,6 +1,6 @@
 # Nostr Biometric Login Service
 
-A service that enables biometric authentication for Nostr applications using WebAuthn.
+A service that enables biometric step-up authentication for Nostr applications using WebAuthn.
 
 ## Features
 

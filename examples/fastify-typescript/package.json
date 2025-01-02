@@ -1,6 +1,7 @@
 {
   "name": "nostr-biometric-login-example",
   "version": "1.0.0",
+  "description": "Example implementation of Nostr biometric step-up authentication using Fastify and TypeScript",
   "type": "module",
   "scripts": {
     "build": "tsc",

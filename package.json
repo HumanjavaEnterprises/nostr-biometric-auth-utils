@@ -1,8 +1,8 @@
 {
-  "name": "nostr-biometric-login-utils",
+  "name": "nostr-biometric-login-service",
   "version": "0.1.0",
   "type": "module",
-  "description": "WebAuthn-based biometric authentication utilities for Nostr applications, providing secure key storage and retrieval using platform biometrics",
+  "description": "A service that enables biometric step-up authentication for Nostr applications using WebAuthn.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
