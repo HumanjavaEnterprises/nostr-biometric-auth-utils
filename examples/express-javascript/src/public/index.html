@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nostr Biometric Login Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #E8F5E9;
+            color: #2E7D32;
+        }
+        .error {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+
+        .nostr-section {
+            margin: 2rem 0;
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+
+        .profile-card {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+
+        .profile-card.visible {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .profile-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .profile-info {
+            flex-grow: 1;
+        }
+
+        .profile-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .profile-npub {
+            font-size: 0.9em;
+            color: #666;
+            word-break: break-all;
+        }
+
+        .profile-input input {
+            font-family: inherit;
+            font-size: 16px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 10px;
+        }
+
+        .actions {
+            margin-top: 20px;
+        }
+
+        .magic-link {
+            background: #E3F2FD;
+            color: #1565C0;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .magic-link.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Nostr Biometric Login Example</h1>
+    
+    <div class="container">
+        <h2>WebAuthn Support</h2>
+        <div id="webauthnSupport"></div>
+    </div>
+
+    <div class="container">
+        <h2>Login with Nostr</h2>
+        <div class="profile-input">
+            <input type="text" id="npubInput" placeholder="Enter your npub...">
+            <button id="fetchProfileBtn">Fetch Profile</button>
+        </div>
+
+        <div id="profileCard" class="profile-card">
+            <img id="profileImage" class="profile-image" src="" alt="Profile">
+            <div class="profile-info">
+                <div id="profileName" class="profile-name"></div>
+                <div id="profileNpub" class="profile-npub"></div>
+            </div>
+        </div>
+
+        <div id="magicLink" class="magic-link"></div>
+
+        <div class="actions">
+            <button id="registerButton">Register</button>
+            <button id="loginButton">Login</button>
+        </div>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script src="webauthn-client.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>

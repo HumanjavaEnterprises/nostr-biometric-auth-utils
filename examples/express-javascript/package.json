@@ -1,0 +1,21 @@
+{
+  "name": "nostr-biometric-login-express-example",
+  "version": "1.0.0",
+  "description": "Express.js example implementation of nostr-biometric-login-service",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "nostr-tools": "^1.17.0",
+    "websocket-polyfill": "^0.0.3",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
