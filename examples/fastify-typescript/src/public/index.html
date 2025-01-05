@@ -45,6 +45,68 @@
             background: #FFEBEE;
             color: #C62828;
         }
+
+        .nostr-section {
+            margin: 2rem 0;
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+
+        .profile-card {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+
+        .profile-card.visible {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .profile-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .profile-info {
+            flex-grow: 1;
+        }
+
+        .profile-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .profile-npub {
+            font-size: 0.9em;
+            color: #666;
+            word-break: break-all;
+        }
+
+        .profile-input input {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-size: 16px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 100%;
+            max-width: 400px;
+            margin: 10px 0;
+        }
+
+        .relay-status {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -55,9 +117,44 @@
         <div id="support-status"></div>
     </div>
 
+    <div class="nostr-section">
+        <h2>Biometric Login Setup </h2>
+        <div class="profile-input">
+            <label for="npub-input">
+                <p>
+                To setup your biometric login, we need to know your nPub, your profile name, and profile photo.<br>
+                These will be used to create a biometric auth profile. You can have multiple profiles biometric keys. But each one will only be accessaible via the DM message of your Nostr account.<br>
+                </p>
+                <p>
+                Enter your nPub to create a biometric auth profile:</p>
+            <input type="text" id="npub-input" placeholder="nPub" />
+            <button id="get-profile-btn">Get Profile</button>
+        </div>
+
+        <div id="profile-card" class="profile-card">
+            <img id="profile-image" class="profile-image" src="" alt="Profile picture">
+            <div class="profile-info">
+                <div id="profile-name" class="profile-name"></div>
+                <div id="profile-npub" class="profile-npub"></div>
+            </div>
+        </div>
+
+        <div>
+            <h2>Mock Magic Link URL</h2>
+            <p>based on your nPub, the magic link URL will be:</p>
+            <div style="margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 4px;">
+                <a id="magic-link-url" href="#" target="_blank" style="word-break: break-all; color: #007AFF; text-decoration: none;">Please fetch a profile first</a>
+            </div>
+            <div>
+                <button id="get-profile-btn">Send DM Magic Link</button>
+                <p>if you have a nPub/nSec key pair, you can use the following button to send the magic link to the nPub above.</p>      
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <h2>Registration</h2>
-        <button id="register">Register with Biometrics</button>
+        <button id="register" disabled>Register with Biometrics</button>
         <div id="register-status" class="status"></div>
     </div>
 
@@ -69,129 +166,349 @@
 
     <script type="module">
         import { WebAuthnClient } from '/public/webauthn-client.js';
+        import { npubToHex, generateRandomString } from '/public/nostr-utils.js';
+
+        console.log('🚀 Page initialized - Loading Nostr Biometric Login Example');
+
+        // List of relays to try
+        const RELAYS = [
+            'wss://relay.damus.io',
+            'wss://relay.nostr.band',
+            'wss://nos.lol',
+            'wss://relay.snort.social'
+        ];
+
+        // Timeout for each relay in milliseconds
+        const RELAY_TIMEOUT = 5000;
+
+        /**
+         * Connect to a relay and fetch profile
+         * @param {string} relayUrl The relay URL to connect to
+         * @param {string} pubkey The public key to fetch
+         * @returns {Promise} Promise that resolves with the profile data or rejects with error
+         */
+        function fetchProfileFromRelay(relayUrl, pubkey) {
+            return new Promise((resolve, reject) => {
+                console.log(`🌐 Connecting to relay: ${relayUrl}`);
+                const relay = new WebSocket(relayUrl);
+                let timeoutId;
+
+                relay.onopen = () => {
+                    console.log(`🔗 Connected to ${relayUrl}`);
+                    const subscription = {
+                        "kinds": [0],
+                        "authors": [pubkey],
+                        "limit": 1
+                    };
+                    relay.send(JSON.stringify([
+                        "REQ",
+                        generateRandomString(8),
+                        subscription
+                    ]));
+                };
+
+                relay.onmessage = (event) => {
+                    const [type, subId, data] = JSON.parse(event.data);
+                    
+                    if (type === "NOTICE") {
+                        console.log(`⚠️ Notice from ${relayUrl}:`, data);
+                        return;
+                    }
+                    
+                    if (type === "EVENT" && data.kind === 0) {
+                        try {
+                            const profile = JSON.parse(data.content);
+                            console.log(`✨ Received profile from ${relayUrl}:`, profile);
+                            clearTimeout(timeoutId);
+                            relay.close();
+                            resolve({ profile, relayUrl, relay });
+                        } catch (error) {
+                            console.error(`❌ Error parsing profile from ${relayUrl}:`, error);
+                            reject(error);
+                        }
+                    }
+                };
+
+                relay.onerror = (error) => {
+                    console.error(`❌ Error with ${relayUrl}:`, error);
+                    reject({ error, relay });
+                };
+
+                // Set timeout for this relay
+                timeoutId = setTimeout(() => {
+                    console.log(`⏱️ Timeout for ${relayUrl}`);
+                    relay.close();
+                    reject({ error: new Error('Timeout'), relay });
+                }, RELAY_TIMEOUT);
+
+                // Return the relay instance for cleanup
+                return relay;
+            });
+        }
+
+        /**
+         * Try all relays in parallel and use the first successful response
+         * @param {string} pubkey The public key to fetch
+         * @returns {Promise} Promise that resolves with the profile data
+         */
+        async function fetchProfileFromAnyRelay(pubkey) {
+            const relayConnections = new Map(); // Keep track of all connections
+            
+            try {
+                const relayPromises = RELAYS.map(url => {
+                    const promise = fetchProfileFromRelay(url, pubkey);
+                    promise.then(({ relay }) => {
+                        relayConnections.set(url, relay);
+                    }).catch(({ relay }) => {
+                        if (relay) relayConnections.set(url, relay);
+                    });
+                    return promise;
+                });
+                
+                // Use Promise.race to get the first successful response
+                const { profile, relayUrl, relay } = await Promise.race(relayPromises);
+                console.log(`🎯 Successfully fetched profile from ${relayUrl}`);
+
+                // Clean up all other connections
+                console.log('🧹 Cleaning up other relay connections...');
+                relayConnections.forEach((connection, url) => {
+                    if (url !== relayUrl && connection.readyState !== WebSocket.CLOSED) {
+                        console.log(`👋 Closing connection to ${url}`);
+                        connection.close();
+                    }
+                });
+
+                return profile;
+            } catch (error) {
+                // Close all connections on error
+                console.log('🧹 Cleaning up all relay connections...');
+                relayConnections.forEach((connection, url) => {
+                    if (connection.readyState !== WebSocket.CLOSED) {
+                        console.log(`👋 Closing connection to ${url}`);
+                        connection.close();
+                    }
+                });
+                throw new Error('Failed to fetch profile from any relay');
+            }
+        }
 
         let client;
+        let currentProfile = null;
+
+        // Function to generate a mock magic link
+        function generateMagicLink(npub) {
+            // Create a simple payload with npub and timestamp
+            const payload = {
+                npub,
+                exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours expiry
+            };
+            
+            // Convert to base64
+            const encodedPayload = btoa(JSON.stringify(payload));
+            
+            // Use current window location to match protocol and port
+            const protocol = window.location.protocol;
+            const domain = client?.options?.rpId || 'nostr-auth.localhost';
+            const port = window.location.port ? `:${window.location.port}` : '';
+            
+            // Create the magic link URL
+            return `${protocol}//${domain}${port}/auth/verify/${encodedPayload}`;
+        }
+
+        // Function to update the magic link display
+        function updateMagicLink() {
+            const magicLinkElement = document.getElementById('magic-link-url');
+            if (currentProfile && currentProfile.npub) {
+                const magicLink = generateMagicLink(currentProfile.npub);
+                magicLinkElement.href = magicLink;
+                magicLinkElement.textContent = magicLink;
+                // Enable clicking
+                magicLinkElement.onclick = (e) => {
+                    e.preventDefault();
+                    const width = 800;
+                    const height = 600;
+                    const left = (screen.width - width) / 2;
+                    const top = (screen.height - height) / 2;
+                    window.open(
+                        magicLink,
+                        'NostrAuthVerify',
+                        `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes`
+                    );
+                };
+            } else {
+                magicLinkElement.textContent = 'Please fetch a profile first';
+                magicLinkElement.href = '#';
+                magicLinkElement.onclick = null;
+            }
+        }
 
         // Initialize WebAuthn client with server info
         async function initClient() {
-            const response = await fetch('/server-info');
-            const { rpId } = await response.json();
-            
-            client = new WebAuthnClient({
-                rpId,
-                rpName: 'Nostr Biometric Login Example'
-            });
-
-            // Check WebAuthn support after client is initialized
-            await checkSupport();
-        }
-
-        // Check WebAuthn support
-        const supportStatus = document.getElementById('support-status');
-        const registerBtn = document.getElementById('register');
-        const authBtn = document.getElementById('authenticate');
-        const registerStatus = document.getElementById('register-status');
-        const authStatus = document.getElementById('auth-status');
-
-        async function checkSupport() {
-            const supported = WebAuthnClient.isSupported();
-            const available = await WebAuthnClient.isAvailable();
-
-            if (!supported) {
-                supportStatus.textContent = '❌ Your browser does not support WebAuthn';
-                supportStatus.className = 'status error';
-                registerBtn.disabled = true;
-                authBtn.disabled = true;
-                return;
-            }
-
-            if (!available) {
-                supportStatus.textContent = '❌ Your device does not support biometric authentication';
-                supportStatus.className = 'status error';
-                registerBtn.disabled = true;
-                authBtn.disabled = true;
-                return;
-            }
-
-            supportStatus.textContent = '✅ Your device supports biometric authentication';
-            supportStatus.className = 'status success';
-        }
-
-        // Registration
-        registerBtn.addEventListener('click', async () => {
+            console.log('📡 Initializing WebAuthn client...');
             try {
-                // For demo, we'll use a fixed user ID
-                const userId = 'demo-user';
-                
-                // Get challenge from server
-                const challengeResp = await fetch('/auth/webauthn/register/challenge', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId })
+                const hostname = window.location.hostname;
+                const rpId = hostname === 'localhost' || hostname === '127.0.0.1' ? hostname : hostname;
+                console.log('🔑 WebAuthn rpId:', rpId);
+                client = new WebAuthnClient({
+                    rpId: rpId,
+                    rpName: 'Nostr Biometric Login',
+                    timeout: 60000,
+                    userVerification: 'preferred'
                 });
-                const { challenge } = await challengeResp.json();
-
-                // Register with WebAuthn
-                const credential = await client.register(
-                    challenge,
-                    userId,
-                    'Demo User'
-                );
-
-                // Verify with server
-                const verifyResp = await fetch('/auth/webauthn/register/verify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, credential })
-                });
-                const { success, error } = await verifyResp.json();
-
-                if (success) {
-                    registerStatus.textContent = '✅ Registration successful!';
-                    registerStatus.className = 'status success';
-                } else {
-                    throw new Error(error || 'Registration failed');
-                }
+                console.log('📡 Initializing WebAuthn client...', client);
+                console.log('🔑 WebAuthn rpId:', client.options.rpId);
+                console.log('🏢 WebAuthn rpName:', client.options.rpName);
             } catch (error) {
-                registerStatus.textContent = `❌ ${error.message}`;
-                registerStatus.className = 'status error';
+                console.error('❌ Failed to initialize WebAuthn client:', error);
+                throw error;
+            }
+        }
+
+        // Add profile fetching functionality
+        const getProfileBtn = document.getElementById('get-profile-btn');
+        const npubInput = document.getElementById('npub-input');
+        const profileCard = document.getElementById('profile-card');
+        const profileImage = document.getElementById('profile-image');
+        const profileName = document.getElementById('profile-name');
+        const profileNpub = document.getElementById('profile-npub');
+
+        console.log('🔍 Profile elements initialized:', {
+            getProfileBtn: !!getProfileBtn,
+            npubInput: !!npubInput,
+            profileCard: !!profileCard,
+            profileImage: !!profileImage,
+            profileName: !!profileName,
+            profileNpub: !!profileNpub
+        });
+
+        getProfileBtn.addEventListener('click', async () => {
+            console.log('👆 Get Profile button clicked');
+            try {
+                const npub = npubInput.value.trim();
+                console.log('📝 Input npub:', npub);
+
+                if (!npub.startsWith('npub1')) {
+                    console.error('❌ Invalid npub format - must start with npub1');
+                    throw new Error('Invalid npub format');
+                }
+
+                // Decode the npub to get the hex pubkey using our utility function
+                console.log('🔄 Converting npub to hex...');
+                const pubkey = npubToHex(npub);
+                console.log('✅ Converted to hex pubkey:', pubkey);
+
+                // Fetch profile information from relays
+                console.log('🔄 Starting profile fetch from multiple relays...');
+                try {
+                    const profile = await fetchProfileFromAnyRelay(pubkey);
+                    
+                    currentProfile = {
+                        name: profile.name || 'Anonymous',
+                        picture: profile.picture || 'https://placeholder.co/80x80',
+                        npub: npub,
+                        pubkey: pubkey  // Store the hex pubkey
+                    };
+                    console.log('💾 Saved current profile:', currentProfile);
+
+                    // Update the profile card
+                    profileName.textContent = currentProfile.name;
+                    profileImage.src = currentProfile.picture;
+                    profileNpub.textContent = currentProfile.npub;
+                    profileCard.style.display = 'block';
+                    console.log('🎨 Updated profile card UI');
+
+                    // Update magic link display
+                    updateMagicLink();
+
+                    // Enable registration button
+                    const registerBtn = document.getElementById('register');
+                    registerBtn.disabled = false;
+                    registerBtn.onclick = handleRegistration;
+                    console.log('🔓 Enabled registration button');
+                } catch (error) {
+                    console.error('❌ Failed to fetch profile:', error);
+                    alert('Failed to fetch profile from any relay. Please try again.');
+                }
+
+            } catch (error) {
+                console.error('❌ Error in profile fetch:', error);
+                alert(error.message);
             }
         });
 
         // Authentication
+        const authBtn = document.getElementById('authenticate');
         authBtn.addEventListener('click', async () => {
             try {
-                // For demo, we'll use a fixed user ID
-                const userId = 'demo-user';
+                if (!currentProfile || !currentProfile.pubkey) {
+                    throw new Error('Please fetch your profile first by entering your npub');
+                }
+
+                if (!client) {
+                    await initClient();
+                }
+
+                console.log('🔐 Starting authentication with pubkey:', currentProfile.pubkey);
                 
                 // Get challenge from server
                 const challengeResp = await fetch('/auth/webauthn/authenticate/challenge', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId })
+                    body: JSON.stringify({ 
+                        userId: currentProfile.pubkey 
+                    })
                 });
+                
+                if (!challengeResp.ok) {
+                    const error = await challengeResp.json();
+                    throw new Error(error.error || 'Failed to get authentication challenge');
+                }
+                
                 const { challenge } = await challengeResp.json();
+                console.log('📝 Got challenge:', challenge);
 
                 // Authenticate with WebAuthn
                 const credential = await client.authenticate(challenge);
+                console.log('✅ Got credential:', credential);
 
                 // Verify with server
                 const verifyResp = await fetch('/auth/webauthn/authenticate/verify', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, credential })
+                    body: JSON.stringify({ 
+                        userId: currentProfile.pubkey, 
+                        credential 
+                    })
                 });
-                const { success, error } = await verifyResp.json();
 
+                if (!verifyResp.ok) {
+                    const error = await verifyResp.json();
+                    throw new Error(error.error || 'Authentication verification failed');
+                }
+
+                const { success, error } = await verifyResp.json();
                 if (success) {
-                    authStatus.textContent = '✅ Authentication successful!';
-                    authStatus.className = 'status success';
+                    const authStatus = document.getElementById('auth-status');
+                    if (authStatus) {
+                        authStatus.textContent = '✅ Authentication successful!';
+                        authStatus.className = 'status success';
+                    }
+                    // Redirect to dashboard after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/public/dashboard.html';
+                    }, 1000);
                 } else {
                     throw new Error(error || 'Authentication failed');
                 }
             } catch (error) {
-                authStatus.textContent = `❌ ${error.message}`;
-                authStatus.className = 'status error';
+                console.error('❌ Authentication error:', error);
+                const authStatus = document.getElementById('auth-status');
+                if (authStatus) {
+                    authStatus.textContent = `❌ ${error.message}`;
+                    authStatus.className = 'status error';
+                } else {
+                    alert('Authentication failed: ' + error.message);
+                }
             }
         });
 

@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { NostrBiometricServer } from '../../../src/server';
 import { WebAuthnServer } from '../../../src/server/webauthn';
+import { decode } from 'nostr-crypto-utils';
 import os from 'os';
 import fs from 'fs';
 
@@ -86,9 +87,26 @@ server.register(fastifyStatic, {
   prefix: '/public/',
 });
 
+// Serve utils directory
+server.register(fastifyStatic, {
+  root: path.join(__dirname, '..', '..', '..', 'src'),
+  prefix: '/',
+  decorateReply: false
+});
+
 // Serve index.html at root
 server.get('/', async (request, reply) => {
   return reply.sendFile('index.html', path.join(__dirname, '..', 'src', 'public'));
+});
+
+// Serve dashboard page
+server.get('/dashboard', async (request, reply) => {
+  return reply.sendFile('dashboard.html', path.join(__dirname, '..', 'src', 'public'));
+});
+
+// Serve verify page for auth/verify routes
+server.get('/auth/verify/*', async (request, reply) => {
+  return reply.sendFile('verify.html', path.join(__dirname, '..', 'src', 'public'));
 });
 
 // Add route to get server info
@@ -103,6 +121,31 @@ server.get('/server-info', async (request, reply) => {
   };
 });
 
+// Add npub to hex conversion endpoint
+server.post('/npub-to-hex', async (request, reply) => {
+  try {
+    const { npub } = request.body as { npub: string };
+    if (!npub) {
+      return reply.code(400).send({ error: 'npub is required' });
+    }
+
+    // Convert npub to hex format
+    try {
+      const hexPubkey = decode(npub).data;
+      if (!hexPubkey) {
+        return reply.code(400).send({ error: 'Invalid npub format' });
+      }
+      return { pubkey: hexPubkey };
+    } catch (conversionError) {
+      console.error('Error in npub conversion:', conversionError);
+      return reply.code(400).send({ error: 'Invalid npub format' });
+    }
+  } catch (error) {
+    console.error('Error handling npub conversion request:', error);
+    return reply.code(500).send({ error: 'Failed to process request' });
+  }
+});
+
 // Initialize WebAuthn with dynamic rpId
 const webAuthnServer = new WebAuthnServer({
   rpId: 'localhost', // Default rpId, will be updated per request
@@ -113,58 +156,92 @@ const webAuthnServer = new WebAuthnServer({
 server.post('/auth/webauthn/register/challenge', async (request, reply) => {
   const { userId } = request.body as { userId: string };
   webAuthnServer.options.rpId = getWebAuthnRpId(request.hostname);
-  const challenge = webAuthnServer.generateRegistrationChallenge(userId);
-  return { challenge };
+  try {
+    const challenge = webAuthnServer.generateRegistrationChallenge(userId);
+    return { challenge };
+  } catch (error) {
+    reply.status(400).send({ 
+      error: error instanceof Error ? error.message : 'Failed to generate registration challenge' 
+    });
+  }
 });
 
 server.post('/auth/webauthn/register/verify', async (request, reply) => {
   const { userId, credential } = request.body as { userId: string; credential: any };
+  webAuthnServer.options.rpId = getWebAuthnRpId(request.hostname);
   try {
-    webAuthnServer.options.rpId = getWebAuthnRpId(request.hostname);
     const success = await webAuthnServer.verifyRegistration(userId, credential);
     return { success };
   } catch (error) {
-    reply.status(400);
-    return { error: error instanceof Error ? error.message : 'Unknown error' };
+    reply.status(400).send({ 
+      error: error instanceof Error ? error.message : 'Failed to verify registration',
+      success: false 
+    });
   }
 });
 
 server.post('/auth/webauthn/authenticate/challenge', async (request, reply) => {
   const { userId } = request.body as { userId: string };
   webAuthnServer.options.rpId = getWebAuthnRpId(request.hostname);
-  const challenge = webAuthnServer.generateAuthenticationChallenge(userId);
-  return { challenge };
+  try {
+    const challenge = webAuthnServer.generateAuthenticationChallenge(userId);
+    return { challenge };
+  } catch (error) {
+    reply.status(400).send({ 
+      error: error instanceof Error ? error.message : 'Failed to generate authentication challenge' 
+    });
+  }
 });
 
 server.post('/auth/webauthn/authenticate/verify', async (request, reply) => {
   const { userId, credential } = request.body as { userId: string; credential: any };
+  webAuthnServer.options.rpId = getWebAuthnRpId(request.hostname);
   try {
-    webAuthnServer.options.rpId = getWebAuthnRpId(request.hostname);
     const success = await webAuthnServer.verifyAuthentication(userId, credential);
     return { success };
   } catch (error) {
-    reply.status(400);
-    return { error: error instanceof Error ? error.message : 'Unknown error' };
+    reply.status(400).send({ 
+      error: error instanceof Error ? error.message : 'Failed to verify authentication',
+      success: false 
+    });
   }
 });
 
-// Start the server
-const start = async () => {
+// Handle profile retrieval request
+server.get('/api/get-profile', async (request, reply) => {
+  const { nPub } = request.query as { nPub: string };
   try {
-    // Listen on all interfaces
-    await server.listen({ 
-      port: 3000, 
-      host: '0.0.0.0'
+    const profileName = await getProfileFromRelay(nPub);
+    return { profileName };
+  } catch (error) {
+    reply.status(400).send({ 
+      error: error instanceof Error ? error.message : 'Failed to retrieve profile' 
     });
+  }
+});
+
+// Function to get profile from relay (dummy implementation)
+async function getProfileFromRelay(nPub: string): Promise<string> {
+  // Here you would implement the logic to connect to the relay and fetch the profile
+  // For now, we will return a dummy profile name
+  return `Profile for ${nPub}`;
+}
+
+// Start the server
+async function start() {
+  try {
+    await server.listen({ port: 3000, host: '0.0.0.0' });
     
     console.log('\nServer running at:');
-    for (const domain of VALID_DOMAINS) {
+    VALID_DOMAINS.forEach(domain => {
       console.log(`- https://${domain}:3000`);
-    }
+    });
+    console.log(); // Empty line for aesthetics
+    
   } catch (err) {
     server.log.error(err);
     process.exit(1);
   }
-};
+}
 
 start();

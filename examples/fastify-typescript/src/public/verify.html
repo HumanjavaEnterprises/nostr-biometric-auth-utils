@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nostr Biometric Login - Verify</title>
+    <script type="module" src="/public/webauthn-client.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .profile-card {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .profile-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 40px;
+        }
+        .profile-info {
+            flex-grow: 1;
+        }
+        .profile-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 0;
+        }
+        .profile-npub {
+            font-family: monospace;
+            word-break: break-all;
+            color: #666;
+            margin: 5px 0;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background: #007AFF;
+            color: white;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .error {
+            color: red;
+            padding: 10px;
+            background: #fff2f2;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: green;
+            padding: 10px;
+            background: #f2fff2;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Nostr Biometric Login</h1>
+        <div id="loading">Loading profile...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="success" class="success" style="display: none;"></div>
+        
+        <div id="profile-card" class="profile-card" style="display: none;">
+            <img id="profile-image" class="profile-image" src="https://via.placeholder.com/80x80" alt="Profile">
+            <div class="profile-info">
+                <h2 id="profile-name" class="profile-name">Loading...</h2>
+                <div id="profile-npub" class="profile-npub"></div>
+            </div>
+        </div>
+
+        <div id="action-container" class="button-container" style="display: none;">
+            <button id="register-btn" class="button">
+                <i class="fas fa-fingerprint"></i>
+                Register Biometrics
+            </button>
+            <button id="authenticate-btn" class="button">
+                <i class="fas fa-sign-in-alt"></i>
+                Authenticate
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { WebAuthnClient } from '/public/webauthn-client.js';
+        
+        let currentProfile = null;
+        let client = null;
+
+        // Define relays to use
+        const RELAYS = [
+            'wss://relay.damus.io',
+            'wss://relay.nostr.band',
+            'wss://nos.lol',
+            'wss://relay.snort.social'
+        ];
+
+        // Helper function to get WebAuthn RP ID
+        function getWebAuthnRpId(hostname) {
+            // List of valid domains for development
+            const validDomains = [
+                'nostr-auth.localhost',
+                'travellaptop.local',
+                'localhost'
+            ];
+
+            // For development, if using an IP address, return localhost
+            if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+                return 'localhost';
+            }
+
+            // For development domains, return the full hostname
+            if (validDomains.includes(hostname)) {
+                return hostname;
+            }
+
+            // For all other cases, return the hostname
+            return hostname;
+        }
+
+        // Initialize error and success message handlers
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Fetch profile from relays
+        async function fetchProfileFromRelays(npub) {
+            console.log('🔄 Starting profile fetch from relays for npub:', npub);
+            
+            // Convert npub to hex pubkey
+            const response = await fetch('/npub-to-hex', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ npub })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to convert npub to hex');
+            }
+            
+            const { pubkey } = await response.json();
+            console.log('🔄 Converted npub to pubkey:', pubkey);
+
+            // Try each relay until we get a response
+            for (const relay of RELAYS) {
+                try {
+                    console.log(`🔄 Trying relay: ${relay}`);
+                    const ws = new WebSocket(relay);
+                    
+                    const profile = await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            ws.close();
+                            reject(new Error('Timeout'));
+                        }, 5000);
+
+                        ws.onmessage = (event) => {
+                            const data = JSON.parse(event.data);
+                            if (data[0] === 'EVENT' && data[2].kind === 0) {
+                                const profile = JSON.parse(data[2].content);
+                                clearTimeout(timeout);
+                                ws.close();
+                                resolve({
+                                    ...profile,
+                                    npub,
+                                    pubkey
+                                });
+                            }
+                        };
+
+                        ws.onopen = () => {
+                            console.log(`📡 Connected to ${relay}`);
+                            ws.send(JSON.stringify([
+                                'REQ',
+                                'profile',
+                                {
+                                    kinds: [0],
+                                    authors: [pubkey]
+                                }
+                            ]));
+                        };
+
+                        ws.onerror = (error) => {
+                            console.error(`❌ WebSocket error with ${relay}:`, error);
+                            reject(error);
+                        };
+                    });
+
+                    console.log('✅ Got profile:', profile);
+                    return profile;
+                } catch (error) {
+                    console.log(`❌ Failed to fetch from ${relay}:`, error);
+                    continue;
+                }
+            }
+            
+            // If we get here, we couldn't fetch from any relay
+            // Return a default profile
+            return {
+                name: 'Anonymous',
+                picture: 'https://placeholder.co/80x80',
+                npub,
+                pubkey
+            };
+        }
+
+        // Update UI with profile
+        function updateProfileUI(profile) {
+            const profileCard = document.getElementById('profile-card');
+            const profileImage = document.getElementById('profile-image');
+            const profileName = document.getElementById('profile-name');
+            const profileNpub = document.getElementById('profile-npub');
+            
+            if (profileImage) profileImage.src = profile.picture || 'https://placeholder.co/80x80';
+            if (profileName) profileName.textContent = profile.name || 'Anonymous';
+            if (profileNpub) profileNpub.textContent = profile.npub;
+            if (profileCard) profileCard.style.display = 'flex';
+            
+            console.log('🎨 Updated profile UI');
+        }
+
+        // Handle registration
+        async function handleRegistration() {
+            try {
+                const challengeResp = await fetch('/auth/webauthn/register/challenge', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId: currentProfile.pubkey })
+                });
+
+                if (!challengeResp.ok) {
+                    const error = await challengeResp.json();
+                    // If user is already registered, show a more helpful message
+                    if (error.error && error.error.includes('already has registered credentials')) {
+                        showError('You have already registered. Please use the Authenticate button instead.');
+                    } else {
+                        throw new Error(error.error || 'Failed to get registration challenge');
+                    }
+                    return;
+                }
+
+                const { challenge } = await challengeResp.json();
+                console.log('📝 Got challenge from server:', challenge);
+                
+                // Register with WebAuthn using the challenge
+                const credential = await client.register(
+                    challenge,
+                    currentProfile.pubkey,
+                    currentProfile.name || 'Anonymous'  // Provide a default name if none exists
+                );
+                
+                console.log('✅ Registration successful:', credential);
+                
+                const verifyResp = await fetch('/auth/webauthn/register/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        credential,
+                        userId: currentProfile.pubkey,
+                        userName: currentProfile.name || 'Anonymous',
+                        npub: currentProfile.npub
+                    })
+                });
+
+                if (!verifyResp.ok) {
+                    const error = await verifyResp.json();
+                    throw new Error(error.error || 'Failed to verify registration');
+                }
+
+                showSuccess('Successfully registered! You can now use biometric authentication.');
+                
+                // Redirect to dashboard after a short delay
+                setTimeout(() => {
+                    window.location.href = '/public/dashboard.html';
+                }, 2000);
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError('Registration failed: ' + error.message);
+            }
+        }
+
+        // Handle authentication
+        async function handleAuthentication() {
+            try {
+                if (!currentProfile || !currentProfile.pubkey) {
+                    throw new Error('Profile not loaded');
+                }
+
+                console.log('🔐 Starting authentication with pubkey:', currentProfile.pubkey);
+
+                const challengeResp = await fetch('/auth/webauthn/authenticate/challenge', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId: currentProfile.pubkey })
+                });
+
+                if (!challengeResp.ok) {
+                    const error = await challengeResp.json();
+                    throw new Error(error.error || 'Failed to get authentication challenge');
+                }
+
+                const { challenge } = await challengeResp.json();
+                console.log('📝 Got challenge from server:', challenge);
+
+                // Authenticate with WebAuthn
+                const credential = await client.authenticate(challenge);
+                console.log('✅ Got credential:', credential);
+
+                const verifyResp = await fetch('/auth/webauthn/authenticate/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userId: currentProfile.pubkey,
+                        credential
+                    })
+                });
+
+                if (!verifyResp.ok) {
+                    const error = await verifyResp.json();
+                    throw new Error(error.error || 'Failed to verify authentication');
+                }
+
+                showSuccess('Successfully authenticated! Redirecting to dashboard...');
+                
+                // Redirect to dashboard after a short delay
+                setTimeout(() => {
+                    window.location.href = '/public/dashboard.html';
+                }, 2000);
+            } catch (error) {
+                console.error('Authentication error:', error);
+                showError('Authentication failed: ' + error.message);
+            }
+        }
+
+        // Initialize the page
+        async function init() {
+            try {
+                console.log('🚀 Initializing verify page...');
+                
+                // Initialize WebAuthn client
+                const hostname = window.location.hostname;
+                const rpId = getWebAuthnRpId(hostname);
+                client = new WebAuthnClient({
+                    rpId: rpId,
+                    rpName: 'Nostr Biometric Login',
+                    timeout: 60000,
+                    userVerification: 'preferred'
+                });
+                console.log('📡 Initialized WebAuthn client with rpId:', rpId);
+
+                // Try to get token from URL query parameters first
+                const urlParams = new URLSearchParams(window.location.search);
+                let token = urlParams.get('token');
+
+                // If no token in query params, try to get it from the path
+                if (!token) {
+                    const path = window.location.pathname;
+                    const matches = path.match(/\/auth\/verify\/(.*)/);
+                    if (matches && matches[1]) {
+                        token = matches[1];
+                    }
+                }
+
+                if (!token) {
+                    throw new Error('No token provided');
+                }
+
+                // Decode token
+                const payload = JSON.parse(atob(token));
+                console.log('📦 Decoded payload:', payload);
+                
+                if (!payload.npub) {
+                    throw new Error('Invalid token format');
+                }
+
+                // Get profile from relays
+                const profile = await fetchProfileFromRelays(payload.npub);
+                console.log('💾 Saved profile:', profile);
+                currentProfile = {
+                    ...profile,
+                    npub: payload.npub
+                };
+                
+                // Update UI
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('action-container').style.display = 'block';
+                updateProfileUI(currentProfile);
+
+                // Add click handlers to buttons
+                document.getElementById('register-btn').addEventListener('click', handleRegistration);
+                document.getElementById('authenticate-btn').addEventListener('click', handleAuthentication);
+                
+            } catch (error) {
+                showError('Failed to initialize: ' + error.message);
+            }
+        }
+
+        // Start initialization
+        init();
+    </script>
+</body>
+</html>

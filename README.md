@@ -6,8 +6,28 @@ A service that enables biometric step-up authentication for Nostr applications u
 
 - WebAuthn-based biometric authentication
 - Support for multiple domains (localhost, .local domains, IP addresses)
-- TypeScript implementation
+- TypeScript implementation with strict type safety
 - Example Fastify server implementation
+- Full NIP-19 compliance for Nostr entity encoding/decoding
+- Comprehensive error handling for all Nostr operations
+
+## Technical Details
+
+### Nostr Integration
+
+The service implements full NIP-19 support for bech32-encoded entities:
+- Automatic conversion between npub and hex formats
+- Type-safe handling of all NIP-19 entity types
+- Comprehensive error handling for malformed inputs
+- Strong TypeScript types for all Nostr-related data structures
+
+### Type Safety
+
+The project emphasizes type safety through:
+- Strict TypeScript configuration
+- Comprehensive type definitions for all Nostr entities
+- Type guards for runtime validation
+- Proper error handling with typed error responses
 
 ## Project Structure
 

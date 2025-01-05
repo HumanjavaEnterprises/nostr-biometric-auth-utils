@@ -7,10 +7,12 @@ import { generateRandomString } from '../utils';
 export class WebAuthnServer {
   private options: WebAuthnOptions;
   private challenges: Map<string, { challenge: string; timestamp: number }>;
+  private credentials: Map<string, Array<any>>;
 
   constructor(options: WebAuthnOptions) {
     this.options = options;
     this.challenges = new Map();
+    this.credentials = new Map();
   }
 
   /**
@@ -18,6 +20,11 @@ export class WebAuthnServer {
    * @param userId The user's ID (pubkey)
    */
   generateRegistrationChallenge(userId: string): string {
+    // Check if user already has credentials
+    if (this.credentials.has(userId)) {
+      throw new Error('User already has registered credentials. Please use authentication instead.');
+    }
+
     const challenge = generateRandomString(32);
     this.challenges.set(userId, {
       challenge,
@@ -31,6 +38,11 @@ export class WebAuthnServer {
    * @param userId The user's ID (pubkey)
    */
   generateAuthenticationChallenge(userId: string): string {
+    // Check if user has registered
+    if (!this.credentials.has(userId)) {
+      throw new Error('No registered credentials found. Please register first.');
+    }
+
     const challenge = generateRandomString(32);
     this.challenges.set(userId, {
       challenge,
@@ -45,6 +57,11 @@ export class WebAuthnServer {
    * @param credential The credential from the client
    */
   async verifyRegistration(userId: string, credential: any): Promise<boolean> {
+    // Check if user already has credentials
+    if (this.credentials.has(userId)) {
+      throw new Error('User already has registered credentials. Please use authentication instead.');
+    }
+
     const expectedChallenge = this.challenges.get(userId);
     if (!expectedChallenge) {
       throw new Error('No challenge found for user');
@@ -65,7 +82,14 @@ export class WebAuthnServer {
         Buffer.from(credential.response.clientDataJSON, 'base64').toString()
       );
 
-      return clientDataJSON.challenge === expectedChallenge.challenge;
+      const isValid = clientDataJSON.challenge === expectedChallenge.challenge;
+      
+      if (isValid) {
+        // Store the credential
+        this.credentials.set(userId, [credential]);
+      }
+
+      return isValid;
     } catch (error) {
       throw new Error('Failed to verify registration');
     }
@@ -77,6 +101,11 @@ export class WebAuthnServer {
    * @param credential The credential from the client
    */
   async verifyAuthentication(userId: string, credential: any): Promise<boolean> {
+    // Check if user has registered
+    if (!this.credentials.has(userId)) {
+      throw new Error('No registered credentials found. Please register first.');
+    }
+
     const expectedChallenge = this.challenges.get(userId);
     if (!expectedChallenge) {
       throw new Error('No challenge found for user');

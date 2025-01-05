@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nostr Biometric Auth - Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+        .welcome-message {
+            font-size: 1.2rem;
+            color: #34495e;
+            margin-bottom: 2rem;
+        }
+        .status {
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        .logout-button {
+            background-color: #e74c3c;
+        }
+        .logout-button:hover {
+            background-color: #c0392b;
+        }
+        .dashboard-section {
+            margin: 2rem 0;
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dashboard</h1>
+        <div class="welcome-message">
+            Welcome back! You are securely authenticated.
+        </div>
+
+        <div class="dashboard-section">
+            <h2>Authentication Status</h2>
+            <div id="auth-status" class="status success">
+                Authenticated using WebAuthn
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2>Session Information</h2>
+            <div id="session-info">
+                <p>Last Authentication: <span id="last-auth-time"></span></p>
+                <p>Device: <span id="device-info"></span></p>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2>Profile Management</h2>
+            <div class="profile-input">
+                <label for="npub-input">Enter your nPub to create a biometric auth profile:</label>
+                <input type="text" id="npub-input" placeholder="nPub" />
+                <button id="get-profile-btn">Get Profile</button>
+                <div id="profile-name" class="profile-name"></div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button id="logout-btn" class="logout-button">
+                Logout
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Update session information
+        function updateSessionInfo() {
+            const now = new Date();
+            document.getElementById('last-auth-time').textContent = now.toLocaleString();
+            document.getElementById('device-info').textContent = navigator.userAgent;
+        }
+
+        // Handle logout
+        async function handleLogout() {
+            try {
+                // Clear any session data
+                localStorage.removeItem('nostr_auth_session');
+                sessionStorage.removeItem('nostr_auth_session');
+                
+                // Redirect to index.html
+                window.location.href = '/public/index.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+                // If there's an error, still try to redirect
+                window.location.href = '/public/index.html';
+            }
+        }
+
+        // New function to get profile name
+        async function getProfile() {
+            const npub = document.getElementById('npub-input').value;
+            if (!npub) {
+                alert('Please enter a valid nPub.');
+                return;
+            }
+            try {
+                const response = await fetch(`/api/get-profile?nPub=${npub}`);
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('profile-name').textContent = `Profile Name: ${data.profileName}`;
+                    // Proceed to register with the retrieved profile name
+                    await registerWithProfile(data.profileName);
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                document.getElementById('profile-name').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function registerWithProfile(profileName) {
+            const challengeResp = await fetch('/auth/webauthn/register/challenge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: profileName })
+            });
+            if (!challengeResp.ok) {
+                const error = await challengeResp.json();
+                throw new Error(error.error || 'Failed to get registration challenge');
+            }
+        }
+
+        // Event listener for button click
+        document.getElementById('get-profile-btn').addEventListener('click', getProfile);
+        document.getElementById('logout-btn').addEventListener('click', handleLogout);
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            updateSessionInfo();
+        });
+    </script>
+</body>
+</html>
