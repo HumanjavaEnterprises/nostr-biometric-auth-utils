@@ -6,10 +6,11 @@ A service that enables biometric step-up authentication for Nostr applications u
 
 - WebAuthn-based biometric authentication
 - Support for multiple domains (localhost, .local domains, IP addresses)
-- TypeScript implementation with strict type safety
-- Example Fastify server implementation
+- Implementations in both TypeScript (Fastify) and JavaScript (Express)
 - Full NIP-19 compliance for Nostr entity encoding/decoding
-- Comprehensive error handling for all Nostr operations
+- Nostr profile fetching from multiple relays
+- Comprehensive error handling for all operations
+- Example implementations with both Fastify and Express
 
 ## Technical Details
 
@@ -18,13 +19,14 @@ A service that enables biometric step-up authentication for Nostr applications u
 The service implements full NIP-19 support for bech32-encoded entities:
 - Automatic conversion between npub and hex formats
 - Type-safe handling of all NIP-19 entity types
+- Profile fetching from multiple Nostr relays
 - Comprehensive error handling for malformed inputs
 - Strong TypeScript types for all Nostr-related data structures
 
 ### Type Safety
 
 The project emphasizes type safety through:
-- Strict TypeScript configuration
+- Strict TypeScript configuration in the Fastify example
 - Comprehensive type definitions for all Nostr entities
 - Type guards for runtime validation
 - Proper error handling with typed error responses
@@ -38,7 +40,8 @@ The project emphasizes type safety through:
 │   ├── server/            # Server-side implementation
 │   └── types/             # TypeScript type definitions
 ├── examples/              # Example implementations
-│   └── fastify-typescript/ # Fastify server example
+│   ├── fastify-typescript/ # Fastify server example with TypeScript
+│   └── express-javascript/ # Express server example with JavaScript
 └── proof-of-concept/      # Initial POC implementation
 ```
 
@@ -55,33 +58,64 @@ The project emphasizes type safety through:
 npm install
 ```
 
-### Running the Example
+### Running the Examples
 
-1. Clone the repository
-2. Install dependencies:
+#### Fastify TypeScript Example
+
+1. Navigate to the Fastify example:
    ```bash
    cd examples/fastify-typescript
    npm install
    ```
-3. Add the following entries to your `/etc/hosts` file:
+2. Add the following entries to your `/etc/hosts` file:
    ```
    127.0.0.1 localhost
    127.0.0.1 nostr-auth.localhost
    ```
-4. Start the server:
+3. Start the server:
    ```bash
    npm run dev
    ```
-5. Visit https://nostr-auth.localhost:3000 in your browser
+4. Visit https://nostr-auth.localhost:3000 in your browser
+
+#### Express JavaScript Example
+
+1. Navigate to the Express example:
+   ```bash
+   cd examples/express-javascript
+   npm install
+   ```
+2. Start the server:
+   ```bash
+   npm start
+   ```
+3. Visit http://localhost:3000 in your browser
+
+### Example Features
+
+Both examples demonstrate:
+- WebAuthn registration and authentication
+- Nostr profile fetching from relays
+- NIP-19 npub handling
+- Biometric authentication flow
+
+Key differences:
+- Fastify example uses TypeScript for enhanced type safety
+- Express example uses JavaScript for simplicity
+- Fastify example supports multiple domains
+- Express example focuses on localhost development
 
 ## Development
 
-The example server supports multiple ways to access it:
+The Fastify example server supports multiple ways to access it:
 - https://nostr-auth.localhost:3000 (recommended for development)
 - https://your-hostname.local:3000 (for local network access)
 - https://your-ip-address:3000 (for local network access)
 
-Note: When accessing via IP address or hostname, the WebAuthn implementation will use 'localhost' as the relying party ID for security reasons.
+The Express example is configured for localhost development:
+- http://localhost:3000 (default development setup)
+
+Note: When accessing via IP address or hostname in the Fastify example, the WebAuthn implementation will use 'localhost' as the relying party ID for security reasons.
 
 ## Contributing
 
