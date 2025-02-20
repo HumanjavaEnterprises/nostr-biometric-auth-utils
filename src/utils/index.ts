@@ -10,8 +10,14 @@ import { bech32 } from '@scure/base';
  */
 export function npubToHex(npub: string): string {
   try {
-    const { words } = bech32.decode(npub);
-    const pubkeyWords = words.slice(0);
+    if (!npub.startsWith('npub1')) {
+      throw new Error('Invalid npub: must start with npub1');
+    }
+    // Split the string into prefix and data parts
+    const prefix = npub.slice(0, 5); // 'npub1'
+    const data = npub.slice(5);
+    const decoded = bech32.decode(`${prefix}1${data}`);
+    const pubkeyWords = decoded.words.slice(0);
     const pubkeyBytes = bech32.fromWords(pubkeyWords);
     return Buffer.from(pubkeyBytes).toString('hex');
   } catch (error) {
@@ -27,7 +33,7 @@ export function hexToNpub(hex: string): string {
   try {
     const bytes = Buffer.from(hex, 'hex');
     const words = bech32.toWords(bytes);
-    return bech32.encode('npub', words);
+    return bech32.encode('npub1', words, 1000);
   } catch (error) {
     throw new Error('Invalid hex format');
   }

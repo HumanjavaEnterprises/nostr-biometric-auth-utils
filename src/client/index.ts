@@ -2,10 +2,10 @@
  * Client-side implementation of nostr-biometric-login
  */
 
+import { AuthenticationStep } from '../types/auth';
 import type { 
   AuthenticationOptions, 
   AuthenticationState, 
-  AuthenticationStep,
   SessionToken
 } from '../types/auth';
 
@@ -59,6 +59,5 @@ export class NostrBiometricClient {
 export type { 
   AuthenticationOptions,
   AuthenticationState,
-  AuthenticationStep,
   SessionToken
 };

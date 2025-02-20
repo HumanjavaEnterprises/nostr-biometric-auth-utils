@@ -1,130 +1,106 @@
-# Nostr Biometric Login Service
+# Nostr Biometric Authentication Utilities
 
-A service that enables biometric step-up authentication for Nostr applications using WebAuthn.
+A comprehensive utility library for implementing biometric authentication in Nostr applications using WebAuthn. This library provides a flexible set of tools for adding secure biometric authentication to your Nostr-based applications.
 
 ## Features
 
-- WebAuthn-based biometric authentication
-- Support for multiple domains (localhost, .local domains, IP addresses)
-- Implementations in both TypeScript (Fastify) and JavaScript (Express)
-- Full NIP-19 compliance for Nostr entity encoding/decoding
-- Nostr profile fetching from multiple relays
-- Comprehensive error handling for all operations
-- Example implementations with both Fastify and Express
+- **WebAuthn Integration**: Ready-to-use utilities for implementing WebAuthn-based biometric authentication
+- **Platform Support**: 
+  - TouchID/FaceID for iOS and macOS
+  - Windows Hello
+  - Android biometric authentication
+  - Security Key support
+- **Nostr-Specific Tools**:
+  - Full NIP-19 compliance for entity encoding/decoding
+  - Nostr profile integration
+  - Direct message-based settings management
+- **Type Safety**: Comprehensive TypeScript support with strict typing
+- **Flexible Integration**: Can be used with any web framework or Nostr client
+- **Security First**: Built with security best practices and proper error handling
 
-## Technical Details
-
-### Nostr Integration
-
-The service implements full NIP-19 support for bech32-encoded entities:
-- Automatic conversion between npub and hex formats
-- Type-safe handling of all NIP-19 entity types
-- Profile fetching from multiple Nostr relays
-- Comprehensive error handling for malformed inputs
-- Strong TypeScript types for all Nostr-related data structures
-
-### Type Safety
-
-The project emphasizes type safety through:
-- Strict TypeScript configuration in the Fastify example
-- Comprehensive type definitions for all Nostr entities
-- Type guards for runtime validation
-- Proper error handling with typed error responses
-
-## Project Structure
-
-```
-.
-├── src/                    # Core library source code
-│   ├── client/            # Client-side implementation
-│   ├── server/            # Server-side implementation
-│   └── types/             # TypeScript type definitions
-├── examples/              # Example implementations
-│   ├── fastify-typescript/ # Fastify server example with TypeScript
-│   └── express-javascript/ # Express server example with JavaScript
-└── proof-of-concept/      # Initial POC implementation
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v16 or later)
-- npm (v7 or later)
-
-### Installation
+## Installation
 
 ```bash
-npm install
+npm install nostr-biometric-auth-utils
 ```
 
-### Running the Examples
+## Usage
 
-#### Fastify TypeScript Example
+### Basic Authentication Flow
 
-1. Navigate to the Fastify example:
-   ```bash
-   cd examples/fastify-typescript
-   npm install
-   ```
-2. Add the following entries to your `/etc/hosts` file:
-   ```
-   127.0.0.1 localhost
-   127.0.0.1 nostr-auth.localhost
-   ```
-3. Start the server:
-   ```bash
-   npm run dev
-   ```
-4. Visit https://nostr-auth.localhost:3000 in your browser
+```typescript
+import { NostrBiometricClient } from 'nostr-biometric-auth-utils';
 
-#### Express JavaScript Example
+const client = new NostrBiometricClient({
+  relays: ['wss://relay.damus.io'],
+  magicLinkExpiry: 300,
+  sessionDuration: 86400
+});
 
-1. Navigate to the Express example:
-   ```bash
-   cd examples/express-javascript
-   npm install
-   ```
-2. Start the server:
-   ```bash
-   npm start
-   ```
-3. Visit http://localhost:3000 in your browser
+// Start authentication for a user
+await client.startAuth('npub1...');
 
-### Example Features
+// Listen for state changes
+client.onStateChange((state) => {
+  switch (state.step) {
+    case 'WAITING_FOR_MAGIC_LINK':
+      console.log('Please check your Nostr client for the magic link');
+      break;
+    case 'STARTING_WEBAUTHN':
+      console.log('Please complete biometric verification');
+      break;
+    case 'COMPLETED':
+      console.log('Authentication successful!');
+      break;
+  }
+});
+```
 
-Both examples demonstrate:
-- WebAuthn registration and authentication
-- Nostr profile fetching from relays
-- NIP-19 npub handling
-- Biometric authentication flow
+### Settings Management
 
-Key differences:
-- Fastify example uses TypeScript for enhanced type safety
-- Express example uses JavaScript for simplicity
-- Fastify example supports multiple domains
-- Express example focuses on localhost development
+```typescript
+import { SettingsManager } from 'nostr-biometric-auth-utils';
 
-## Development
+const settings = new SettingsManager(nostrService, userPubkey);
 
-The Fastify example server supports multiple ways to access it:
-- https://nostr-auth.localhost:3000 (recommended for development)
-- https://your-hostname.local:3000 (for local network access)
-- https://your-ip-address:3000 (for local network access)
+// Load user settings
+const currentSettings = await settings.loadSettings();
 
-The Express example is configured for localhost development:
-- http://localhost:3000 (default development setup)
+// Update settings
+await settings.updateSettings({
+  biometricEnabled: true,
+  sessionDuration: 3600
+});
+```
 
-Note: When accessing via IP address or hostname in the Fastify example, the WebAuthn implementation will use 'localhost' as the relying party ID for security reasons.
+## Architecture
+
+The library is organized into several core modules:
+
+- **Client**: Main client-side implementation for managing authentication flow
+- **Core**: 
+  - WebAuthn implementation
+  - TouchID/FaceID integration
+  - Security key support
+- **Settings**: Nostr-based settings management
+- **Utils**: Helper functions for Nostr entity handling
+
+## Security Considerations
+
+- All biometric data remains on the user's device
+- Implements FIDO2 WebAuthn specifications
+- Follows security best practices for key management
+- Proper error handling for all security-critical operations
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+Contributions are welcome! Please read our contributing guidelines for details on our code of conduct and the process for submitting pull requests.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Security
+## Related Projects
 
-For security concerns, please read our [SECURITY.md](SECURITY.md) document.
+- [nostr-dm-magiclink-utils](https://github.com/HumanjavaEnterprises/nostr-dm-magiclink-utils)
+- [MaiQR Platform](https://github.com/HumanjavaEnterprises/MaiQR-Platform)
