@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NostrService } from './nostr.service';
+import { NostrService } from '../../services/nostr.service';
 
 describe('NostrService', () => {
   it('should be instantiated with default relay', () => {
