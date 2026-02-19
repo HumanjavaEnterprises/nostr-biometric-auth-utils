@@ -1,11 +1,11 @@
-# Contributing to nostr-biometric-login-utils
+# Contributing to nostr-biometric-auth-utils
 
-Thank you for considering contributing to **nostr-biometric-login-utils**! We appreciate your help in making this biometric authentication service better.
+Thank you for considering contributing to **nostr-biometric-auth-utils**! We appreciate your help in making this biometric authentication service better.
 
 ## How to Contribute
 
 ### Reporting Issues
-If you find a bug or have a feature request, please open an issue on our [GitHub repository](https://github.com/HumanjavaEnterprises/nostr-biometric-login-utils/issues).
+If you find a bug or have a feature request, please open an issue on our [GitHub repository](https://github.com/HumanjavaEnterprises/nostr-biometric-auth-utils/issues).
 
 ### Pull Requests
 1. Fork the repository.
