@@ -58,16 +58,21 @@ export function isBrowser(): boolean {
 
 /**
  * Set a cookie in the browser
+ *
+ * NOTE: HttpOnly cannot be set via document.cookie — it can only be set via
+ * a server-side Set-Cookie header. Session cookies should be set server-side
+ * with the HttpOnly flag to prevent client-side script access.
+ *
  * @param name Cookie name
  * @param value Cookie value
  * @param days Days until expiry
  */
 export function setCookie(name: string, value: string, days: number): void {
   if (!isBrowser()) return;
-  
+
   const expires = new Date();
   expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Strict`;
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Strict;Secure`;
 }
 
 /**

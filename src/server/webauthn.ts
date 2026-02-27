@@ -22,7 +22,17 @@ import type {
   AuthenticatorTransportFuture,
 } from '@simplewebauthn/types';
 
+/**
+ * NOTE: The in-memory credential store is suitable for development and testing only.
+ * Production deployments should use a persistent database (e.g., PostgreSQL, SQLite)
+ * for credential storage to survive server restarts and support horizontal scaling.
+ */
 export class WebAuthnServer {
+  /** Maximum number of WebAuthn credentials a single user may register */
+  private static readonly MAX_CREDENTIALS_PER_USER = 10;
+  /** Maximum number of distinct users with stored credentials */
+  private static readonly MAX_TOTAL_USERS = 50000;
+
   private options: WebAuthnOptions;
   private challenges: Map<string, { challenge: string; timestamp: number }>;
   private credentials: Map<string, StoredCredential[]>;
@@ -125,6 +135,15 @@ export class WebAuthnServer {
       const { verified, registrationInfo } = verification;
 
       if (verified && registrationInfo) {
+        // Enforce credential limits to prevent unbounded memory growth
+        const userCreds = this.credentials.get(userId) || [];
+        if (userCreds.length >= WebAuthnServer.MAX_CREDENTIALS_PER_USER) {
+          throw new Error('Maximum credentials per user reached');
+        }
+        if (!this.credentials.has(userId) && this.credentials.size >= WebAuthnServer.MAX_TOTAL_USERS) {
+          throw new Error('Maximum registered users reached');
+        }
+
         // Store the credential with its public key for future authentication
         const storedCredential: StoredCredential = {
           credentialID: Buffer.from(registrationInfo.credentialID).toString('base64url'),
@@ -135,7 +154,7 @@ export class WebAuthnServer {
           transports: credential.response.transports as AuthenticatorTransportFuture[] | undefined,
         };
 
-        this.credentials.set(userId, [storedCredential]);
+        this.credentials.set(userId, [...userCreds, storedCredential]);
       }
 
       return verified;

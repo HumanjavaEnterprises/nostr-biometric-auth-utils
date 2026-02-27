@@ -89,6 +89,8 @@ export interface MagicLinkPayload {
 export interface SessionToken {
   /** The actual session token */
   token: string;
+  /** Timestamp when the session was created */
+  createdAt: number;
   /** Timestamp when the session expires */
   expiresAt: number;
   /** Public key of the authenticated user */
