@@ -15,7 +15,7 @@ export function npubToHex(npub: string): string {
     }
     // Decode the full bech32 string directly — npub1... is already valid bech32
     // with 'npub' as the human-readable part and '1' as the separator
-    const decoded = bech32.decode(npub, 1500);
+    const decoded = bech32.decode(npub as `npub1${string}`, 1500);
     const pubkeyBytes = bech32.fromWords(decoded.words);
     return Buffer.from(pubkeyBytes).toString('hex');
   } catch (error) {

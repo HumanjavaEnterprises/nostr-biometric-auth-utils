@@ -151,7 +151,7 @@ export class WebAuthnServer {
           counter: registrationInfo.counter,
           credentialBackedUp: registrationInfo.credentialBackedUp,
           credentialDeviceType: registrationInfo.credentialDeviceType,
-          transports: credential.response.transports as AuthenticatorTransportFuture[] | undefined,
+          transports: credential.response.transports as unknown as AuthenticatorTransport[] | undefined,
         };
 
         this.credentials.set(userId, [...userCreds, storedCredential]);
