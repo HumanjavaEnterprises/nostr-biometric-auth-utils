@@ -18,10 +18,31 @@ export interface WebAuthnOptions {
   rpId: string;
   /** Relying Party name (displayed to user) */
   rpName: string;
+  /** Expected origin for WebAuthn verification (e.g., 'https://example.com') */
+  origin: string | string[];
   /** User verification requirement */
   userVerification?: UserVerificationRequirement;
   /** Timeout in milliseconds */
   timeout?: number;
+}
+
+/**
+ * Stored credential data from a successful WebAuthn registration.
+ * Contains the public key and counter needed for authentication verification.
+ */
+export interface StoredCredential {
+  /** Base64url-encoded credential ID */
+  credentialID: string;
+  /** Base64url-encoded credential public key */
+  credentialPublicKey: string;
+  /** Sign counter for clone detection */
+  counter: number;
+  /** The credential backing type (e.g., 'singleDevice' or 'multiDevice') */
+  credentialBackedUp: boolean;
+  /** The credential device type */
+  credentialDeviceType: string;
+  /** Transports supported by this credential */
+  transports?: AuthenticatorTransport[];
 }
 
 export interface AuthenticationState {
