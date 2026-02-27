@@ -13,12 +13,10 @@ export function npubToHex(npub: string): string {
     if (!npub.startsWith('npub1')) {
       throw new Error('Invalid npub: must start with npub1');
     }
-    // Split the string into prefix and data parts
-    const prefix = npub.slice(0, 5); // 'npub1'
-    const data = npub.slice(5);
-    const decoded = bech32.decode(`${prefix}1${data}`);
-    const pubkeyWords = decoded.words.slice(0);
-    const pubkeyBytes = bech32.fromWords(pubkeyWords);
+    // Decode the full bech32 string directly — npub1... is already valid bech32
+    // with 'npub' as the human-readable part and '1' as the separator
+    const decoded = bech32.decode(npub, 1500);
+    const pubkeyBytes = bech32.fromWords(decoded.words);
     return Buffer.from(pubkeyBytes).toString('hex');
   } catch (error) {
     throw new Error('Invalid npub format');
@@ -33,7 +31,8 @@ export function hexToNpub(hex: string): string {
   try {
     const bytes = Buffer.from(hex, 'hex');
     const words = bech32.toWords(bytes);
-    return bech32.encode('npub1', words, 1000);
+    // HRP is 'npub' — bech32.encode adds the '1' separator automatically
+    return bech32.encode('npub', words, 1500);
   } catch (error) {
     throw new Error('Invalid hex format');
   }

@@ -41,7 +41,7 @@ export class WebAuthnClient {
     const publicKey: PublicKeyCredentialRequestOptions = {
       challenge: this.base64ToBuffer(challenge),
       timeout: this.options.timeout || 60000,
-      userVerification: this.options.userVerification || 'preferred',
+      userVerification: this.options.userVerification || 'required',
       rpId: this.options.rpId,
     };
 
@@ -88,7 +88,7 @@ export class WebAuthnClient {
       timeout: this.options.timeout || 60000,
       authenticatorSelection: {
         authenticatorAttachment: 'platform',
-        userVerification: this.options.userVerification || 'preferred',
+        userVerification: this.options.userVerification || 'required',
       },
       attestation: 'none'
     };
