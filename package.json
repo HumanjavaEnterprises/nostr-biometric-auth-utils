@@ -1,6 +1,6 @@
 {
   "name": "nostr-biometric-auth-utils",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "description": "A utility library for biometric authentication in Nostr applications using WebAuthn.",
   "main": "dist/index.js",
