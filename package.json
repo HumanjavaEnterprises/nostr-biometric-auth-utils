@@ -54,7 +54,7 @@
     "@scure/base": "^1.2.6",
     "@simplewebauthn/browser": "^8.3.7",
     "@simplewebauthn/server": "^8.3.5",
-    "nostr-crypto-utils": "^0.4.15"
+    "nostr-crypto-utils": "^0.5.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
