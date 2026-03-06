@@ -15,12 +15,10 @@ import {
   verifyAuthenticationResponse,
   type VerifiedRegistrationResponse,
   type VerifiedAuthenticationResponse,
+  type RegistrationResponseJSON,
+  type AuthenticationResponseJSON,
+  type AuthenticatorTransportFuture,
 } from '@simplewebauthn/server';
-import type {
-  RegistrationResponseJSON,
-  AuthenticationResponseJSON,
-  AuthenticatorTransportFuture,
-} from '@simplewebauthn/types';
 
 /**
  * NOTE: The in-memory credential store is suitable for development and testing only.
@@ -145,10 +143,12 @@ export class WebAuthnServer {
         }
 
         // Store the credential with its public key for future authentication
+        // v13: credential info is nested under registrationInfo.credential
+        const { credential: webAuthnCred } = registrationInfo;
         const storedCredential: StoredCredential = {
-          credentialID: Buffer.from(registrationInfo.credentialID).toString('base64url'),
-          credentialPublicKey: Buffer.from(registrationInfo.credentialPublicKey).toString('base64url'),
-          counter: registrationInfo.counter,
+          credentialID: webAuthnCred.id,
+          credentialPublicKey: Buffer.from(webAuthnCred.publicKey).toString('base64url'),
+          counter: webAuthnCred.counter,
           credentialBackedUp: registrationInfo.credentialBackedUp,
           credentialDeviceType: registrationInfo.credentialDeviceType,
           transports: credential.response.transports as unknown as AuthenticatorTransport[] | undefined,
@@ -215,9 +215,9 @@ export class WebAuthnServer {
         expectedChallenge: expectedChallenge.challenge,
         expectedOrigin: Array.isArray(this.options.origin) ? this.options.origin : [this.options.origin],
         expectedRPID: this.options.rpId,
-        authenticator: {
-          credentialID: Buffer.from(matchingCredential.credentialID, 'base64url'),
-          credentialPublicKey: Buffer.from(matchingCredential.credentialPublicKey, 'base64url'),
+        credential: {
+          id: matchingCredential.credentialID,
+          publicKey: Buffer.from(matchingCredential.credentialPublicKey, 'base64url'),
           counter: matchingCredential.counter,
           transports: matchingCredential.transports as AuthenticatorTransportFuture[] | undefined,
         },

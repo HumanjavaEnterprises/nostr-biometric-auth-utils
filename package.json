@@ -1,6 +1,6 @@
 {
   "name": "nostr-biometric-auth-utils",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "type": "module",
   "description": "A utility library for biometric authentication in Nostr applications using WebAuthn.",
   "main": "dist/index.js",
@@ -51,22 +51,21 @@
   },
   "homepage": "https://github.com/HumanjavaEnterprises/nostr-biometric-auth-utils#readme",
   "dependencies": {
-    "@scure/base": "^1.2.6",
-    "@simplewebauthn/browser": "^8.3.7",
-    "@simplewebauthn/server": "^8.3.5",
-    "nostr-crypto-utils": "^0.5.1"
+    "@scure/base": "^2.0.0",
+    "@simplewebauthn/browser": "^13.2.2",
+    "@simplewebauthn/server": "^13.2.3",
+    "nostr-crypto-utils": "file:../nostr-crypto-utils"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@simplewebauthn/types": "^12.0.0",
     "@types/node": "^20.19.33",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
-    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^10.0.0",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">=16.0.0"

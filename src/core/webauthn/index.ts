@@ -20,7 +20,7 @@ import type {
   PublicKeyCredentialRequestOptionsJSON,
   RegistrationResponseJSON,
   AuthenticationResponseJSON
-} from '@simplewebauthn/types';
+} from '@simplewebauthn/browser';
 
 /**
  * Initialize WebAuthn for a new device
@@ -42,7 +42,7 @@ export async function initializeWebAuthn(
 export async function registerDevice(
   options: PublicKeyCredentialCreationOptionsJSON
 ): Promise<RegistrationResponseJSON> {
-  return await startRegistration(options);
+  return await startRegistration({ optionsJSON: options });
 }
 
 /**
@@ -66,7 +66,7 @@ export async function authenticate(
   challenge: PublicKeyCredentialRequestOptionsJSON
 ): Promise<AuthResult> {
   try {
-    const authResponse = await startAuthentication(challenge);
+    const authResponse = await startAuthentication({ optionsJSON: challenge });
     return {
       success: true,
       timestamp: Date.now(),
