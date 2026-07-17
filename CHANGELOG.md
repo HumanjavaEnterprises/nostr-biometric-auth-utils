@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-07-17
+
+### Fixed
+- **WebAuthnClient.register() now serializes the registration (attestation) response correctly.** Previously the registration credential was serialized in the assertion shape (`authenticatorData`/`signature`/`userHandle`) and the `attestationObject` was omitted entirely, so the output could never be verified by a WebAuthn server (`verifyRegistration` always threw). `serializeCredential` now branches on the response type and emits `{ id, rawId, type, response: { attestationObject, clientDataJSON, transports } }` for registration and `{ id, rawId, type, response: { authenticatorData, clientDataJSON, signature, userHandle } }` for authentication.
+- All serialized binary credential fields (`rawId`, `attestationObject`, `clientDataJSON`, `authenticatorData`, `signature`, `userHandle`) are now encoded as **base64url** (no `+`, `/`, or `=` padding) per the WebAuthn spec, matching what `@simplewebauthn/server` requires.
+
+### Added
+- Unit tests for `WebAuthnClient` credential serialization covering the registration (attestation) shape, base64url encoding, missing `getTransports()`, and the authentication (assertion) shape.
+
 ## [0.2.0] - 2026-03-06
 
 ### Changed
