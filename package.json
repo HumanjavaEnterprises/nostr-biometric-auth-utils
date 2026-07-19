@@ -1,6 +1,6 @@
 {
   "name": "nostr-biometric-auth-utils",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "description": "A utility library for biometric authentication in Nostr applications using WebAuthn.",
   "main": "dist/index.js",
@@ -54,7 +54,7 @@
     "@scure/base": "^2.0.0",
     "@simplewebauthn/browser": "^13.2.2",
     "@simplewebauthn/server": "^13.2.3",
-    "nostr-crypto-utils": "^0.7.0"
+    "nostr-crypto-utils": "^0.8.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

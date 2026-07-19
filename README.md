@@ -6,6 +6,13 @@
 
 A comprehensive utility library for implementing biometric authentication in Nostr applications using WebAuthn. This library provides a flexible set of tools for adding secure biometric authentication as a step-up factor to your Nostr-based applications.
 
+> **Release note — v0.2.2 (staged, pending publish).** Part of the coordinated
+> 2026-07 correctness pass across the Nostr library family, verified against a
+> shared known-answer vector set (NIP-44 v2 / NIP-49 / NIP-19 TLV / BIP-340). This
+> release fixes WebAuthn registration (attestation) credential serialization so
+> `register()` output is server-verifiable — see [CHANGELOG.md](CHANGELOG.md). The
+> family dogfoods only its own libraries — no upstream `nostr-tools` dependency.
+
 ## Features
 
 - **WebAuthn Integration**: Ready-to-use utilities for implementing WebAuthn-based biometric authentication

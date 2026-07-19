@@ -108,17 +108,38 @@ export class WebAuthnClient {
   }
 
   private serializeCredential(credential: PublicKeyCredential): any {
+    // Registration produces an AuthenticatorAttestationResponse; authentication
+    // produces an AuthenticatorAssertionResponse. Each must be serialized in its
+    // own shape (WebAuthn spec), with all binary fields encoded as base64url.
+    if ('attestationObject' in credential.response) {
+      const response = credential.response as AuthenticatorAttestationResponse;
+
+      return {
+        id: credential.id,
+        type: credential.type,
+        rawId: this.bufferToBase64Url(credential.rawId),
+        response: {
+          attestationObject: this.bufferToBase64Url(response.attestationObject),
+          clientDataJSON: this.bufferToBase64Url(response.clientDataJSON),
+          transports:
+            typeof response.getTransports === 'function'
+              ? response.getTransports()
+              : []
+        }
+      };
+    }
+
     const response = credential.response as AuthenticatorAssertionResponse;
-    
+
     return {
       id: credential.id,
       type: credential.type,
-      rawId: this.bufferToBase64(credential.rawId),
+      rawId: this.bufferToBase64Url(credential.rawId),
       response: {
-        authenticatorData: this.bufferToBase64(response.authenticatorData),
-        clientDataJSON: this.bufferToBase64(response.clientDataJSON),
-        signature: this.bufferToBase64(response.signature),
-        userHandle: response.userHandle ? this.bufferToBase64(response.userHandle) : null
+        authenticatorData: this.bufferToBase64Url(response.authenticatorData),
+        clientDataJSON: this.bufferToBase64Url(response.clientDataJSON),
+        signature: this.bufferToBase64Url(response.signature),
+        userHandle: response.userHandle ? this.bufferToBase64Url(response.userHandle) : null
       }
     };
   }
@@ -132,13 +153,18 @@ export class WebAuthnClient {
     return bytes.buffer;
   }
 
-  private bufferToBase64(buffer: ArrayBuffer): string {
+  private bufferToBase64Url(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) {
       binary += String.fromCharCode(bytes[i]);
     }
-    return window.btoa(binary);
+    // base64url per the WebAuthn spec: '+' -> '-', '/' -> '_', no padding
+    return window
+      .btoa(binary)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
   }
 
   private stringToBuffer(str: string): ArrayBuffer {
